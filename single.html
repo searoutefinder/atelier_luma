@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>Atelier Project map using CraftCMS feed</title>
+	<link rel="stylesheet" type="text/css" href="css/main.css" />
+</head>
+<body>
+	<div id="wrapper">
+		<div id="controls" class="slide-out"></div>
+		<div id="map"></div>
+	</div>	
+
+	<!-- Scripts -->
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+	<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAk7Z0k1M3kL8Df_s7bBH0_ucqTadiVQqc"></script>
+	<script type="text/javascript" src="js/convex-hull.js"></script>
+	<script type="text/javascript" src="js/markerclusterer.js"></script>
+	<script type="text/javascript" src="js/project-map.js"></script>
+	<script type="text/javascript">
+    	/* Let the show begin... */
+
+		function findGetParameter(parameterName) {
+		    var result = null,
+		        tmp = [];
+		    location.search
+		        .substr(1)
+		        .split("&")
+		        .forEach(function (item) {
+		          tmp = item.split("=");
+		          if (tmp[0] === parameterName) result = decodeURIComponent(tmp[1]);
+		        });
+		    return result;
+		}
+
+    	function lumaSingleMapInit(projectID){
+
+			/* Initiate the map */
+			projectMap.init( $('#map').get(0), 'en' );
+
+			/* Load, store and process projects- */
+			var projects = (function(){
+				return projectMap.getAllProjects().then(projectMap.setProjects);
+			})();
+
+			/* ...themes... */
+			var themes = (function(){
+				return projectMap.getAllThemes().then(projectMap.setThemes);
+			})();
+
+			/* ...and people */
+			var people = (function(){
+				return projectMap.getAllPeople().then(projectMap.setPeople);
+			})();
+
+			people.done(function(data){
+
+				/*Get the IDs for each people in each project*/
+				projectMap.fetchProjectPeople();
+
+				/* Close any info bubble that may be open */
+				projectMap.closeBubble();
+
+				$('#controls').removeClass('slide-in').addClass('slide-out');
+
+				if( projectID == 9999){
+					projectMap.displayAllProjects();					
+				}
+
+				/* Get single project's details and prepare request for retrieving participants */
+					
+				var project = projectMap.getSingleProject( projectID );
+
+				if( !!project ){
+					var ppl = (function(){
+						return projectMap.getUrlContents(['https://staging-luma.basedigital.io/api/en/people/', project.peopleIDs,'.json'].join('')).then(projectMap.setResult);
+					})();
+					ppl.done(function(data){
+						projectMap.deleteOverlays();
+						projectMap.displaySelectedPeople(data, project, true);
+        				
+        				var people = projectMap.getPeopleMarkers(); 							
+
+
+                        /*Create the sidebar*/
+        				$('#controls')
+        					.html('')
+        					.css({'background': project.themeColor});
+
+        				var lbl = $('<label>').css({'padding':'15px','border':'1px solid #000000', 'display': 'block', 'margin-top': '80px', 'font-size': '14px'}).html(projectMap.getThemeInfo(project.themeID).title);
+
+        				$('#controls').append(lbl);
+        				$('#controls').append('<h1>' + project.title + '</h1>');
+        				$('#controls').append(project.intro);
+        				$('#controls').append('<a href="' + project.url + '">View project</a>');
+
+        				/*$('#controls').append( $('<ul></ul>').css({'margin':'0px 0px 0px 15px','padding':'10px 0px 0px 0px'}) );
+
+        				for(i in data){
+        					var $li = $('<li><a href="#" class="ppl-sidebar-listitem" data-id="' + data[i].id + '">' + data[i].title + '</a></li>');
+        					$li.find('.ppl-sidebar-listitem').on('click', function(e){
+        						e.preventDefault();
+        						for(h=0;h<people.length;h++){
+        							if( people[h].attributes.id == $(e.currentTarget).attr('data-id') ){
+        								var map = projectMap.getMap();
+        								map.setCenter( people[h].getPosition() );
+        								google.maps.event.trigger(people[h], 'click');
+        								return;
+        							}	
+        						}
+        					});
+        					$('#controls').find('ul').append( $li );
+        				}*/
+
+        				$('#controls').removeClass('slide-out').addClass('slide-in');
+					});
+				}
+			});
+    	}
+
+		$(document).ready(function(){
+			lumaSingleMapInit( findGetParameter('projectid') );
+		});
+	</script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>Atelier Project map using CraftCMS feed</title>
+	<link rel="stylesheet" type="text/css" href="css/main.css" />
+</head>
+<body>
+	<div id="wrapper">
+		<div id="controls" class="slide-out"></div>
+		<div id="map" class="slide-out"></div>
+	</div>	
+
+	<!-- Scripts -->
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+	<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAk7Z0k1M3kL8Df_s7bBH0_ucqTadiVQqc"></script>
+	<script type="text/javascript" src="js/convex-hull.js"></script>
+	<script type="text/javascript" src="js/markerclusterer.js"></script>
+	<script type="text/javascript" src="js/project-map.js"></script>
+	<script type="text/javascript">
+    	/* Let the show begin... */
+
+		$(document).ready(function(){
+			
+			/* Initiate the map */
+			projectMap.init( $('#map').get(0), 'en' );
+
+			/* Load, store and process projects- */
+			var projects = (function(){
+				return projectMap.getAllProjects().then(projectMap.setProjects);
+			})();
+
+			/* ...themes... */
+			var themes = (function(){
+				return projectMap.getAllThemes().then(projectMap.setThemes);
+			})();
+
+			/* ...and people */
+			var people = (function(){
+				return projectMap.getAllPeople().then(projectMap.setPeople);
+			})();
+
+			/* Perform action when projects are loaded and stored locally */
+			projects.done(function(data){
+
+				var mapDropDown = projectMap.createProjectDropdown(data, 'project-picker');
+				
+				mapDropDown.on('change', function(e){
+					
+					/* Close any info bubble that may be open */
+					projectMap.closeBubble();
+
+					
+
+					if( $(this).val() == 9999 ){
+						projectMap.displayAllProjects(true);					
+
+						/*Hide the sidebar when 'all projects' are selected*/
+						$('#controls').removeClass('slide-in').addClass('slide-out');
+						$('#map').removeClass('slide-in').addClass('slide-out');
+
+
+						return;
+					}
+
+					/* Get single project's details and prepare request for retrieving participants */
+					
+					var project = projectMap.getSingleProject( $(this).val() );
+
+					//console.log(project);
+
+					if( !!project ){
+						var ppl = (function(){
+							return projectMap.getUrlContents(['https://staging-luma.basedigital.io/api/en/people/', project.peopleIDs,'.json'].join('')).then(projectMap.setResult);
+						})();
+
+						ppl.done(function(data){
+
+							projectMap.deleteOverlays();
+							
+			        		
+							var people = projectMap.getPeopleMarkers();
+
+			        		var clusterer = projectMap.getClusterer();
+			        		if( typeof clusterer != 'undefined' ){
+			        			clusterer.clearMarkers();
+			        			clusterer = null;
+			        		}								
+
+        					console.log(project);
+        					console.log(data);
+
+                            /*Create the sidebar*/
+        					$('#controls')
+        						.html('')
+        						.css({'background': project.themeColor});
+
+        					var lbl = $('<label>').css({'padding':'15px','border':'1px solid #000000', 'display': 'block', 'margin-top': '80px', 'font-size': '14px'}).html(projectMap.getThemeInfo(project.themeID).title);
+
+        					$('#controls').append(lbl);
+        					$('#controls').append('<h1>' + project.title + '</h1>');
+        					$('#controls').append(project.intro);
+        					$('#controls').append('<a href="' + project.url + '">View project</a>');
+
+        					$('#map').removeClass('slide-out').addClass('slide-in');
+        					$('#controls').removeClass('slide-out').addClass('slide-in');
+        					
+        					google.maps.event.trigger(projectMap.getMap(), 'resize');
+
+        					//setTimeout(function(){
+								projectMap.displaySelectedPeople(data, project, true);
+        					//}, 1000);
+        					
+
+						});
+					}
+				});
+
+				/* Update the dropdown with the perpared SELECT HTML markup */
+				projectMap.updateMapDropdown(mapDropDown);
+
+			});
+			people.done(function(data){
+				projectMap.displayAllProjects(false);
+			});
+		});
+	</script>
+</body>
+</html>
