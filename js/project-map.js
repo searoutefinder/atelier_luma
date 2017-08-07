@@ -26,6 +26,7 @@
         		'vertices': [],
         		'connections': [],
         		'relations': [],
+                'individualLocations': [],
         		'api': {
         			'projects': 'https://staging-luma.basedigital.io/api/*/projects.json',
         			'people': 'https://staging-luma.basedigital.io/api/*/people.json',
@@ -547,8 +548,6 @@
 			  }
 			}
 
-
-
         	/*
         	 *	Public function _displaySelectedPeople
         	 *	@param peopleJSON: json representation of people involved in the selected project
@@ -566,8 +565,8 @@
         		for(i=0;i<peopleJSON.length;i++){
         			if( peopleJSON[i].latitude != 0 && peopleJSON[i].longitude != 0){
         				
-        				var pplMarker = new google.maps.Marker({
-        					'map': publicVars.map, 
+        				var pplMarker = new google.maps.Marker({        					
+                            'draggable': true,
         					'position': new google.maps.LatLng( parseFloat(peopleJSON[i].latitude), parseFloat(peopleJSON[i].longitude)),
         					'icon': {
 								'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join(project.themeColor),
@@ -593,12 +592,25 @@
 
         				});
 
-        				publicVars.peopleMarkers.push(pplMarker);
-
-        				latlngs.push({'latitude': parseFloat(peopleJSON[i].latitude), 'longitude': parseFloat(peopleJSON[i].longitude)});
+                        if(publicVars.peopleMarkers.length == 0){  
+                            pplMarker.setMap(publicVars.map);                          
+                            publicVars['individualLocations'].push( pplMarker.getPosition().toString() ); 
+                            publicVars.peopleMarkers.push(pplMarker);                         
+                        }
+                        else{                        
+                            if( publicVars['individualLocations'].indexOf(pplMarker.getPosition().toString()) == -1 ){                                 
+                                pplMarker.setMap( publicVars.map );
+                                publicVars['individualLocations'].push( pplMarker.getPosition().toString() );
+                                publicVars.peopleMarkers.push( pplMarker );                                
+                            }
+                        }
+                        latlngs.push({'latitude': pplMarker.getPosition().lat(), 'longitude': pplMarker.getPosition().lng()});                              
         			}
         		}
-
+                
+                
+                //ppl_lls.length = 0;
+                //ppl_lls = null;
 
         		if(!isOverall){
         			var uniqLatLngs =  [];
@@ -621,8 +633,6 @@
 						var coordinates = a[r].split(",");
 						publicVars.vertices.push({'latlng': new google.maps.LatLng( parseFloat(coordinates[0]), parseFloat(coordinates[1]) ), 'url': a[r], 'id': r});
 					}
-
-					//console.log(publicVars.vertices);
 
 					for(i in publicVars.vertices){
 					  connectVertexToAllVertices(publicVars.vertices[i].id);
@@ -661,6 +671,7 @@
         			bounds.extend(new google.maps.LatLng(ring[i].latitude, ring[i].longitude));
         		}
         		if(isOverall){
+                    //console.log('Tamas');
 	        		/*path.push(new google.maps.LatLng(ring[0].latitude, ring[0].longitude));
 	        		
 	        		publicVars.projectCoverages.push(new google.maps.Polyline({
@@ -777,6 +788,10 @@
                 }                
             }
 
+            function _resetLocations(){
+                publicVars['individualLocations'].length = 0;
+            }
+
         	return {
             	init: _init,
             	getAllPeople: _getAllPeople, 
@@ -799,6 +814,7 @@
                 fetchProjectPeople: _fetchProjectPeople,
                 getClusterer: _getClusterer,
                 getPeopleMarkers: _getPeopleMarkers,
-                getMap: _getMap
+                getMap: _getMap,
+                resetLocations: _resetLocations
         	};
     	})(window, jQuery);
