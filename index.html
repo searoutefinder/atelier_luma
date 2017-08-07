@@ -106,12 +106,10 @@
         					$('#controls').removeClass('slide-out').addClass('slide-in');
         					
         					google.maps.event.trigger(projectMap.getMap(), 'resize');
+							
+        					projectMap.resetLocations();
 
-        					//setTimeout(function(){
-								projectMap.displaySelectedPeople(data, project, true);
-        					//}, 1000);
-        					
-
+							projectMap.displaySelectedPeople(data, project, true);	
 						});
 					}
 				});
