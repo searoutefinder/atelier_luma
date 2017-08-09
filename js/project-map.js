@@ -455,6 +455,7 @@
         	 */
         	function _createBubble(marker, peopleJSON){
         		console.clear();
+                console.log(peopleJSON);
                 console.log(marker.attributes);
 
                 if( typeof marker.attributes.institution[0] == 'undefined' ){
@@ -468,18 +469,28 @@
 
                 var pplCount = 0;
                 var pplBbl = [];
-                for(i in peopleJSON){
+                for(i=0;i<peopleJSON.length;i++){
                     if( [peopleJSON[i].latitude, peopleJSON[i].longitude].join(",") == marker.getPosition().toUrlValue() ){
                         pplCount++;
-                        pplBbl.push( peopleJSON[i] );
+                        pplBbl.push( {'title': peopleJSON[i].title, 'jobTitle': peopleJSON[i].jobTitle, 'institution': (typeof peopleJSON[i].institution[0] == 'undefined') ? '' : peopleJSON[i].institution[0].title } );
                     }
                 }
 
+                console.log(pplBbl);
+
                 if(pplCount > 1){
                     /*Show a list of people in the bubble*/
+                    console.log(pplBbl);
                     var $content = $('<div style="padding:5px;height:auto;overflow:hidden;"><p style="font-size:14px;font-weight:bold;margin:0;">' + marker.attributes.projectTitle + '</p><ul></ul></div>');
-                    for(i in pplBbl){
-                        $content.find('ul').append( $('<li>' + pplBbl[i].title + '</li>') );
+                    for(i in pplBbl){                        
+                        var _template_data = [pplBbl[i].title, pplBbl[i].jobTitle, pplBbl[i].institution];
+                        var _templ = [];
+                        for(i in _template_data){
+                            if(_template_data[i] != ''){
+                                _templ.push(_template_data[i]);
+                            }
+                        }
+                        $content.find('ul').append( $('<li>' + _templ.join(' &middot; ') +'</li>') );
                     }
                 }
                 else
@@ -566,7 +577,6 @@
         			if( peopleJSON[i].latitude != 0 && peopleJSON[i].longitude != 0){
         				
         				var pplMarker = new google.maps.Marker({        					
-                            'draggable': true,
         					'position': new google.maps.LatLng( parseFloat(peopleJSON[i].latitude), parseFloat(peopleJSON[i].longitude)),
         					'icon': {
 								'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join(project.themeColor),
@@ -583,7 +593,6 @@
         					
                             if( publicVars.bubble.isOpen() ){
                                 publicVars.bubble.close();
-                                return;
                             }
 
                             _createBubble(this, peopleJSON);
@@ -608,9 +617,6 @@
         			}
         		}
                 
-                
-                //ppl_lls.length = 0;
-                //ppl_lls = null;
 
         		if(!isOverall){
         			var uniqLatLngs =  [];
@@ -641,12 +647,8 @@
 					for(j=publicVars.connections.length - 1;j>=0;j--){
 						getUniqueConnections(publicVars.connections[j]);
 					}					
-					//console.clear();
-					//console.log(publicVars.vertices);
-					//console.log(publicVars.relations);
 
 					for(i in publicVars.relations){
-
 		        		publicVars.projectCoverages.push(new google.maps.Polyline({
 		        			'map': publicVars.map,
 		        			'strokeOpacity': 1,
@@ -657,34 +659,23 @@
 					}
 				}				
 
-
-
         		var ring = calculateConvexHull(latlngs);
 
         		var path = [];
         		var bounds = new google.maps.LatLngBounds();
 
         		for(i in ring){
-        			/*if(isOverall){
-        				path.push(new google.maps.LatLng(ring[i].latitude, ring[i].longitude));
-        			}*/	
         			bounds.extend(new google.maps.LatLng(ring[i].latitude, ring[i].longitude));
         		}
-        		if(isOverall){
-                    //console.log('Tamas');
-	        		/*path.push(new google.maps.LatLng(ring[0].latitude, ring[0].longitude));
-	        		
-	        		publicVars.projectCoverages.push(new google.maps.Polyline({
-	        			'map': publicVars.map,
-	        			'strokeOpacity': 1,
-	        			'strokeColor': project.themeColor,
-	        			'strokeWeight': 2,
-	        			'path': path
-	        		}));*/
-				}
+
         		if(setToBounds){
         			if( !bounds.isEmpty() ){
-        				publicVars.map.fitBounds(bounds);
+                        google.maps.event.addListenerOnce(publicVars.map, 'bounds_changed', function(){
+                            if( publicVars.map.getZoom() == 22){
+                                publicVars.map.setZoom(16);
+                            }
+                        });
+        				publicVars.map.fitBounds(bounds);                      
         			}
         		}        		
         	}
