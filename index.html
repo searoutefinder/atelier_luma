@@ -59,7 +59,8 @@
 						$('#controls').removeClass('slide-in').addClass('slide-out');
 						$('#map').removeClass('slide-in').addClass('slide-out');
 
-
+						google.maps.event.trigger(projectMap.getMap(), 'resize');
+						
 						return;
 					}
 
