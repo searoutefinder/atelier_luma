@@ -15,6 +15,7 @@
         		'bubble': new google.maps.InfoWindow, 
         		'currentlyOnDisplay': [],
         		'peopleMarkers': [],
+                'outCastMarkers': [],
         		'projectCoverages': [],
         		'languageCode': 'en',
         		'updateLanguage': function(){
@@ -40,7 +41,8 @@
         		},
         		'assets': {
         			'basemarker': '<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns:svg="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="16" height="16" id="svg2" version="1.1"><path d="m 15.75,8.0000013 c 0,4.2802067 -3.469793,7.7499997 -7.75,7.7499997 -4.2802068,0 -7.75,-3.469793 -7.75,-7.7499997 0,-4.2802068 3.4697932,-7.74999998 7.75,-7.74999998 4.280207,0 7.75,3.46979318 7.75,7.74999998 z" style="fill:marker-color-here;fill-opacity:1;stroke:none"/></svg>'
-        		}
+        		},
+                'lastClickedMarkerID': null
         	};
 
             function _getMap(){
@@ -339,7 +341,6 @@
         	 *	This function is intended to store this JSON in the module's private var
         	 */
         	function _setProjects(projectsJSON){
-        		//console.log(projectsJSON.data);
         		publicVars.data.projects = projectsJSON.data.slice(); 
         		return publicVars.data.projects;
         	}
@@ -350,7 +351,7 @@
         	 *	Representation of all people in JSON format from CarftCMS API
         	 *	This function is intended to store this JSON in the module's private var
         	 */
-        	function _setPeople(peopleJSON){        		
+        	function _setPeople(peopleJSON){     		
         		publicVars.data.people = peopleJSON.data.slice();
         		return publicVars.data.people;
         	}
@@ -453,10 +454,10 @@
  			 *	@param: marker [a google.maps.Marker object]
  			 *	Creates an info window using the marker's attributes
         	 */
-        	function _createBubble(marker, peopleJSON){
-        		console.clear();
+        	function _createBubble(marker, peopleJSON, projectID){
                 console.log(peopleJSON);
                 console.log(marker.attributes);
+                console.log(projectID);
 
                 if( typeof marker.attributes.institution[0] == 'undefined' ){
         			var institution = '';
@@ -469,10 +470,18 @@
 
                 var pplCount = 0;
                 var pplBbl = [];
-                for(i=0;i<peopleJSON.length;i++){
-                    if( [peopleJSON[i].latitude, peopleJSON[i].longitude].join(",") == marker.getPosition().toUrlValue() ){
+
+                for(i=0;i<publicVars.data.people.length;i++){
+                    if( [publicVars.data.people[i].latitude, publicVars.data.people[i].longitude].join(",") == marker.getPosition().toUrlValue() ){
                         pplCount++;
-                        pplBbl.push( {'title': peopleJSON[i].title, 'jobTitle': peopleJSON[i].jobTitle, 'institution': (typeof peopleJSON[i].institution[0] == 'undefined') ? '' : peopleJSON[i].institution[0].title } );
+                        if( publicVars.data.people[i].projects.length == 0){
+                            pplBbl.push( {'group': 'outcasts', 'projects': [], 'title': publicVars.data.people[i].title, 'jobTitle': publicVars.data.people[i].jobTitle, 'institution': (typeof publicVars.data.people[i].institution[0] == 'undefined') ? '' : publicVars.data.people[i].institution[0].title } );
+                        }
+                        else{
+                            if( publicVars.data.people[i].projects.indexOf(projectID) > -1){
+                                pplBbl.push( {'group': 'projectees', 'projects': publicVars.data.people[i].projects.slice(), 'title': publicVars.data.people[i].title, 'jobTitle': publicVars.data.people[i].jobTitle, 'institution': (typeof publicVars.data.people[i].institution[0] == 'undefined') ? '' : publicVars.data.people[i].institution[0].title } );
+                            }
+                        }                        
                     }
                 }
 
@@ -480,23 +489,52 @@
 
                 if(pplCount > 1){
                     /*Show a list of people in the bubble*/
-                    console.log(pplBbl);
-                    var $content = $('<div style="padding:5px;height:auto;overflow:hidden;"><p style="font-size:14px;font-weight:bold;margin:0;">' + marker.attributes.projectTitle + '</p><ul></ul></div>');
+                    var $content = $('<div style="padding:5px;height:auto;overflow:hidden;"><p style="font-size:14px;font-weight:bold;margin:0;">' + marker.attributes.projectTitle + '</p><ul class="projectees"></ul></div>');
+                    //pplBl = pplBbl.sort(function(a,b){return a.xx-b.xx}).slice();
+                    //console.log(pplBbl.sort(function(a,b){return a.noproject-b.noproject}));
+
+                    var projectees = [];
+                    var outcasts = [];
+
                     for(i in pplBbl){                        
-                        var _template_data = [pplBbl[i].title, pplBbl[i].jobTitle, pplBbl[i].institution];
-                        var _templ = [];
-                        for(i in _template_data){
-                            if(_template_data[i] != ''){
-                                _templ.push(_template_data[i]);
-                            }
+                        if( pplBbl[i].group == 'projectees' ){
+                            projectees.push(pplBbl[i]);
                         }
-                        $content.find('ul').append( $('<li>' + _templ.join(' &middot; ') +'</li>') );
+                        else if(pplBbl[i].group == 'outcasts')
+                        {
+                            outcasts.push(pplBbl[i]);                            
+                        }
                     }
+
+                    for(k in projectees){
+                            var _template_data = [projectees[k].title, projectees[k].jobTitle, projectees[k].institution, "[" + projectees[k].projects.join(',')+"]"];
+                            var _templ = [];
+                            for(i in _template_data){
+                                if(_template_data[i] != ''){
+                                    _templ.push(_template_data[i]);
+                                }
+                            }
+                            $content.find('ul.projectees').append( $('<li>' + _templ.join(' &middot; ') +'</li>') );
+                    }
+                    if(outcasts.length > 0){
+                      $content.append('<hr><ul class="outcasts"></ul>');
+                    }
+                    for(j in outcasts){
+                            var _template_data = [outcasts[j].title, outcasts[j].jobTitle, outcasts[j].institution];
+                            var _templ = [];
+                            for(i in _template_data){
+                                if(_template_data[i] != ''){
+                                    _templ.push(_template_data[i]);
+                                }
+                            }
+                            $content.find('ul.outcasts').append( $('<li>' + _templ.join(' &middot; ') +'</li>') );                        
+                    }
+                    console.log([projectees, outcasts]);
                 }
                 else
                 {
                     /*Show only the individual's details in the bubble*/
-                    var $content = $('<div style="padding:5px;height:auto;overflow:hidden;"><p style="font-size:14px;font-weight:bold;margin:0;">' + marker.attributes.title + '</p><p style="font-size:12px;margin:0;">' + marker.attributes.jobTitle + '</p>' + institution + '<p style="font-size:12px;margin:0;">' + marker.attributes.projectTitle + '</p></div>');
+                    var $content = $('<div style="padding:5px;height:auto;overflow:hidden;"><p style="font-size:14px;font-weight:bold;margin:0;">' + marker.attributes.title + '</p><p style="font-size:12px;margin:0;">' + marker.attributes.jobTitle + '</p>' + institution + '<p style="font-size:12px;margin:0;">' + marker.attributes.projectTitle + '</p><p>' + '[' + marker.attributes.projects.join(",") + ']' + '</p></div>');
                 }
 
                 publicVars.bubble.setOptions({
@@ -569,7 +607,6 @@
         	function _displaySelectedPeople(peopleJSON, project, setToBounds, isOverall){
         		
         		//console.log(['_displaySelectedPeople got called', peopleJSON, project]);        		
-
         		/* Instantiate a wrapper for polyline vertices */	
         		var latlngs = [];
 
@@ -578,26 +615,38 @@
         				
         				var pplMarker = new google.maps.Marker({        					
         					'position': new google.maps.LatLng( parseFloat(peopleJSON[i].latitude), parseFloat(peopleJSON[i].longitude)),
-        					'icon': {
-								'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join(project.themeColor),
+        					'draggable': true,
+                            'icon': {
+								'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join(project.themeColor.replace(/-/g, "")),
 							    'size': new google.maps.Size(16, 16),
 							    'scaledSize': new google.maps.Size(16, 16),
 							    'anchor': new google.maps.Point(8, 8)        						
         					}
-        				});        		
+        				});        		  
 
-        				pplMarker.attributes = $.extend(true, {}, peopleJSON[i], {'themeColor': project.themeColor, 'themeID': project.themeID, 'projectTitle': project.title});
+        				pplMarker.attributes = $.extend(true, {}, peopleJSON[i], {'themeColor': project.themeColor.replace(/-/g, ""), 'themeID': project.themeID, 'projectTitle': project.title});
         				pplMarker.connections = [];
 
         				google.maps.event.addListener(pplMarker, 'click', function(e){
-        					
+        					console.log(pplMarker.attributes.id);
                             if( publicVars.bubble.isOpen() ){
                                 publicVars.bubble.close();
+
+                                /*If the clicked marker is a different marker from the one we have just clicked on before then open a new info bubble*/
+                                if(publicVars.lastClickedMarkerID != this.attributes.id){
+                                    _createBubble(this, peopleJSON, project.id);
+
+                                    publicVars.bubble.open(publicVars.map, this);
+                                    publicVars.lastClickedMarkerID = this.attributes.id;                                    
+                                }
                             }
+                            else
+                            {
+                                _createBubble(this, peopleJSON, project.id);
 
-                            _createBubble(this, peopleJSON);
-
-        					publicVars.bubble.open(publicVars.map, this);
+        					   publicVars.bubble.open(publicVars.map, this);
+                               publicVars.lastClickedMarkerID = this.attributes.id;
+                            }
 
         				});
 
@@ -652,7 +701,7 @@
 		        		publicVars.projectCoverages.push(new google.maps.Polyline({
 		        			'map': publicVars.map,
 		        			'strokeOpacity': 1,
-		        			'strokeColor': project.themeColor,
+		        			'strokeColor': project.themeColor.replace(/-/g, ""),
 		        			'strokeWeight': 2,
 		        			'path': [publicVars.vertices[ publicVars.relations[i][0] ].latlng, publicVars.vertices[ publicVars.relations[i][1] ].latlng]
 		        		}));						
@@ -680,6 +729,26 @@
         		}        		
         	}
 
+            function _displayOutcastPeople(peopleArray){
+                console.log(peopleArray);
+                for(i=0;i<peopleArray.length;i++){
+                    var ocMarker = new google.maps.Marker({                            
+                        'position': new google.maps.LatLng( parseFloat(peopleArray[i].latitude), parseFloat(peopleArray[i].longitude)),
+                        'draggable': true,
+                        'title': peopleArray[i].title,
+                        'map': publicVars.map
+                        /*'icon': {
+                            'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join(project.themeColor),
+                            'size': new google.maps.Size(16, 16),
+                            'scaledSize': new google.maps.Size(16, 16),
+                            'anchor': new google.maps.Point(8, 8)                               
+                        }*/
+                    });             
+
+                    ocMarker.attributes = $.extend(true, {}, peopleArray[i]);
+                }
+            }
+
         	function _displayAllProjects(initial){
         		
         		/* Delete all possible overlays from the map */
@@ -702,7 +771,7 @@
 					publicVars.data.projects[i]['themeColor'] = publicVars.data.themecolors[ publicVars.data.projects[i]['themeID'] ];				
 				}
 
-        		
+        		console.log(publicVars.data.projects);
 
         		var counter = 0;
 
@@ -718,18 +787,34 @@
 									if( !bounds.isEmpty() ){
 										if( initial ){
                                             publicVars.map.fitBounds(bounds);
-                                        }    
+                                        }
+
+                                        /*Display people with no projects*/                                        
+                                        //var outcast = _getPeopleWithNoProject();                                          
+                                        //_displayOutcastPeople(outcast);
+
 						        		_createCluster();										
 									}
 								}
 								else
 								{
-									_displaySelectedPeople(data.data, project, false, true);								
+                                    console.log(data);    
+									_displaySelectedPeople(data.data, project, false, true);							
 								}
 							});
 					})(publicVars.data.projects[k]);        			
         		}       		
         	}
+
+            function _getPeopleWithNoProject(){
+                var outcast = [];
+                for(i=0;i<publicVars.data.people.length;i++){
+                    if( publicVars.data.people[i].projects.length == 0){
+                        outcast.push(publicVars.data.people[i]);
+                    }
+                }
+                return outcast;
+            }
 
         	function _getUrlContents(url){
 				return $.ajax({
