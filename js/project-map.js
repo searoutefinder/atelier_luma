@@ -625,7 +625,8 @@
         				});        		  
 
         				pplMarker.attributes = $.extend(true, {}, peopleJSON[i], {'themeColor': project.themeColor.replace(/-/g, ""), 'themeID': project.themeID, 'projectTitle': project.title});
-        				pplMarker.connections = [];
+        		
+                        pplMarker.connections = [];
 
         				google.maps.event.addListener(pplMarker, 'click', function(e){
         					console.log(pplMarker.attributes.id);
@@ -664,9 +665,8 @@
                         }
                         latlngs.push({'latitude': pplMarker.getPosition().lat(), 'longitude': pplMarker.getPosition().lng()});                              
         			}
-        		}
-                
-
+        		}                      
+                        
         		if(!isOverall){
         			var uniqLatLngs =  [];
         			var a = [];
@@ -706,7 +706,46 @@
 		        			'path': [publicVars.vertices[ publicVars.relations[i][0] ].latlng, publicVars.vertices[ publicVars.relations[i][1] ].latlng]
 		        		}));						
 					}
-				}				
+				}
+
+                if(isOverall){
+                    for(j in publicVars.peopleMarkers){
+                            /*Modify location color*/       
+                            var pplCount = 0;
+                            var pplBbl = [];
+                            for(i=0;i<publicVars.data.people.length;i++){
+                                if( [publicVars.data.people[i].latitude, publicVars.data.people[i].longitude].join(",") == publicVars.peopleMarkers[j].getPosition().toUrlValue() ){
+                                    pplCount++;
+                                    if( publicVars.data.people[i].projects.length == 0){
+                                        pplBbl.push( {'group': 'outcasts', 'projects': [], 'title': publicVars.data.people[i].title, 'jobTitle': publicVars.data.people[i].jobTitle, 'institution': (typeof publicVars.data.people[i].institution[0] == 'undefined') ? '' : publicVars.data.people[i].institution[0].title } );
+                                    }
+                                    else{
+                                        if( publicVars.data.people[i].projects.indexOf(project.id) > -1){
+                                            pplBbl.push( {'group': 'projectees', 'projects': publicVars.data.people[i].projects.slice(), 'title': publicVars.data.people[i].title, 'jobTitle': publicVars.data.people[i].jobTitle, 'institution': (typeof publicVars.data.people[i].institution[0] == 'undefined') ? '' : publicVars.data.people[i].institution[0].title } );
+                                        }
+                                    }                        
+                                }
+                            }
+                            if(pplCount > 1){
+                                var projectees = [];
+                                var outcasts = [];
+
+                                for(i in pplBbl){                        
+                                    if( pplBbl[i].group == 'projectees' ){
+                                        projectees.push(pplBbl[i]);
+                                    }
+                                    else if(pplBbl[i].group == 'outcasts')
+                                    {
+                                        outcasts.push(pplBbl[i]);                            
+                                    }
+                                }
+
+                                if(outcasts.length > 0){
+                                    publicVars.peopleMarkers[j].setOptions({'icon': {'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join('#000000'),'size': new google.maps.Size(16, 16),'scaledSize': new google.maps.Size(16, 16),'anchor': new google.maps.Point(8, 8)}})
+                                }
+                            } 
+                    }
+                }				
 
         		var ring = calculateConvexHull(latlngs);
 
