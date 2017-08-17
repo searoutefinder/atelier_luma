@@ -40,17 +40,22 @@
 				return projectMap.getAllPeople().then(projectMap.setPeople);
 			})();
 
-			/* Perform action when projects are loaded and stored locally */
-			projects.done(function(data){
 
-				var mapDropDown = projectMap.createProjectDropdown(data, 'project-picker');
+			$.when(
+				projects,
+				themes,
+				people
+			)
+			.done(function(projects, themes, people){
+				
+				console.log([projects, themes, people]);
+
+				var mapDropDown = projectMap.createProjectDropdown(projects, 'project-picker');
 				
 				mapDropDown.on('change', function(e){
 					
 					/* Close any info bubble that may be open */
 					projectMap.closeBubble();
-
-					
 
 					if( $(this).val() == 9999 ){
 						projectMap.displayAllProjects(true);					
@@ -89,12 +94,12 @@
 			        		}								
 
         					console.log(project);
-        					console.log(data);
+        					//console.log(data);
 
                             /*Create the sidebar*/
         					$('#controls')
         						.html('')
-        						.css({'background': project.themeColor});
+        						.css({'background': project.themeColor.replace(/-/g, "")});
 
         					var lbl = $('<label>').css({'padding':'15px','border':'1px solid #000000', 'display': 'block', 'margin-top': '80px', 'font-size': '14px'}).html(projectMap.getThemeInfo(project.themeID).title);
 
@@ -118,9 +123,8 @@
 				/* Update the dropdown with the perpared SELECT HTML markup */
 				projectMap.updateMapDropdown(mapDropDown);
 
-			});
-			people.done(function(data){
-				projectMap.displayAllProjects(false);
+				projectMap.displayAllProjects(false);				
+
 			});
 		});
 	</script>
