@@ -26,31 +26,56 @@
 			projectMap.init( $('#map').get(0), 'en' );
 
 			/* Load, store and process projects- */
-			var projects = (function(){
-				return projectMap.getAllProjects().then(projectMap.setProjects);
-			})();
+			var projects = function(){
+				return projectMap.getAllProjects();//.then(projectMap.setProjects);
+			};
 
 			/* ...themes... */
-			var themes = (function(){
-				return projectMap.getAllThemes().then(projectMap.setThemes);
-			})();
+			var themes = function(){
+				return projectMap.getAllThemes();//.then(projectMap.setThemes);
+			};
 
 			/* ...and people */
-			var people = (function(){
-				return projectMap.getAllPeople().then(projectMap.setPeople);
-			})();
+			var people = function(){
+				return projectMap.getAllPeople();//.then(projectMap.setPeople);
+			};
 
-			/* Perform action when projects are loaded and stored locally */
-			projects.done(function(data){
 
-				var mapDropDown = projectMap.createProjectDropdown(data, 'project-picker');
+			$.when(
+				projectMap.getAllProjects(),
+				projectMap.getAllThemes(),
+				projectMap.getAllPeople()
+			)
+			.done(function(projects, themes, people){
+				
+				console.log(projects[0].data);
+
+				projectMap.setProjects( projects[0].data.slice() );
+				projectMap.setThemes( themes[0].data.slice() );
+				projectMap.setPeople( people[0].data.slice() );
+
+				/*var themes = themes[0].data.slice();
+				var themeRequests = [];
+				for(i=0;i<themes.length;i++){
+					themeRequests.push( 
+						$.get(themes[i].jsonUrl.replace('<locale:\\w+>', projectMap.getLanguage()))
+							.success(function(data){
+								console.log(data.data[0]);
+							}) 
+					);
+				}
+
+				$.when.apply($, themeRequests)
+				.done(function(){
+					console.log('All done');
+				});*/
+
+				var mapDropDown = projectMap.createProjectDropdown(projectMap.getProjects(), 'project-picker');
 				
 				mapDropDown.on('change', function(e){
 					
 					/* Close any info bubble that may be open */
 					projectMap.closeBubble();
-
-					
 
 					if( $(this).val() == 9999 ){
 						projectMap.displayAllProjects(true);					
@@ -59,69 +84,48 @@
 						$('#controls').removeClass('slide-in').addClass('slide-out');
 						$('#map').removeClass('slide-in').addClass('slide-out');
 
-
+						google.maps.event.trigger(projectMap.getMap(), 'resize');
+						
 						return;
 					}
 
 					/* Get single project's details and prepare request for retrieving participants */
 					
-					var project = projectMap.getSingleProject( $(this).val() );
+					//var project = projectMap.getSingleProject( $(this).val() );
 
-					//console.log(project);
+			        var clusterer = projectMap.getClusterer();
 
-					if( !!project ){
-						var ppl = (function(){
-							return projectMap.getUrlContents(['https://staging-luma.basedigital.io/api/en/people/', project.peopleIDs,'.json'].join('')).then(projectMap.setResult);
-						})();
+			        if( typeof clusterer != 'undefined' ){
+			        	clusterer.clearMarkers();
+			        	clusterer = null;
+			        }
 
-						ppl.done(function(data){
+					projectMap.displayProjectPeople( $(this).val() );
+					var project = projectMap.getProjectByID( $(this).val() );
 
-							projectMap.deleteOverlays();
+        			$('#controls')
+        				.html('')
+        				.css({'background': project.themeColor.replace(/-/g, "")});
+
+        			var lbl = $('<label>').css({'padding':'15px','border':'1px solid #000000', 'display': 'block', 'margin-top': '80px', 'font-size': '14px'}).html(projectMap.getThemeInfo(project.themeID).title);
+
+        			$('#controls').append(lbl);
+        			$('#controls').append('<h1>' + project.title + '</h1>');
+        			$('#controls').append(project.intro);
+        			$('#controls').append('<a href="' + project.url + '">View project</a>');
+
+        			$('#map').removeClass('slide-out').addClass('slide-in');
+        			$('#controls').removeClass('slide-out').addClass('slide-in');
+        					
+        			google.maps.event.trigger(projectMap.getMap(), 'resize');
 							
-			        		
-							var people = projectMap.getPeopleMarkers();
-
-			        		var clusterer = projectMap.getClusterer();
-			        		if( typeof clusterer != 'undefined' ){
-			        			clusterer.clearMarkers();
-			        			clusterer = null;
-			        		}								
-
-        					console.log(project);
-        					console.log(data);
-
-                            /*Create the sidebar*/
-        					$('#controls')
-        						.html('')
-        						.css({'background': project.themeColor});
-
-        					var lbl = $('<label>').css({'padding':'15px','border':'1px solid #000000', 'display': 'block', 'margin-top': '80px', 'font-size': '14px'}).html(projectMap.getThemeInfo(project.themeID).title);
-
-        					$('#controls').append(lbl);
-        					$('#controls').append('<h1>' + project.title + '</h1>');
-        					$('#controls').append(project.intro);
-        					$('#controls').append('<a href="' + project.url + '">View project</a>');
-
-        					$('#map').removeClass('slide-out').addClass('slide-in');
-        					$('#controls').removeClass('slide-out').addClass('slide-in');
-        					
-        					google.maps.event.trigger(projectMap.getMap(), 'resize');
-
-        					//setTimeout(function(){
-								projectMap.displaySelectedPeople(data, project, true);
-        					//}, 1000);
-        					
-
-						});
-					}
 				});
 
 				/* Update the dropdown with the perpared SELECT HTML markup */
 				projectMap.updateMapDropdown(mapDropDown);
 
-			});
-			people.done(function(data){
-				projectMap.displayAllProjects(false);
+				projectMap.displayAllProjects(false);				
+
 			});
 		});
 	</script>

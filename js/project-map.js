@@ -26,6 +26,7 @@
         		'vertices': [],
         		'connections': [],
         		'relations': [],
+                'individualLocations': [],
         		'api': {
         			'projects': 'https://staging-luma.basedigital.io/api/*/projects.json',
         			'people': 'https://staging-luma.basedigital.io/api/*/people.json',
@@ -39,8 +40,13 @@
         		},
         		'assets': {
         			'basemarker': '<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns:svg="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="16" height="16" id="svg2" version="1.1"><path d="m 15.75,8.0000013 c 0,4.2802067 -3.469793,7.7499997 -7.75,7.7499997 -4.2802068,0 -7.75,-3.469793 -7.75,-7.7499997 0,-4.2802068 3.4697932,-7.74999998 7.75,-7.74999998 4.280207,0 7.75,3.46979318 7.75,7.74999998 z" style="fill:marker-color-here;fill-opacity:1;stroke:none"/></svg>'
-        		}
+        		},
+                'lastClickedMarkerID': null
         	};
+
+            function _getLang(){
+                return publicVars.languageCode;
+            }
 
             function _getMap(){
                 return publicVars.map;
@@ -338,10 +344,22 @@
         	 *	This function is intended to store this JSON in the module's private var
         	 */
         	function _setProjects(projectsJSON){
-        		//console.log(projectsJSON.data);
-        		publicVars.data.projects = projectsJSON.data.slice(); 
+        		publicVars.data.projects = projectsJSON; 
         		return publicVars.data.projects;
         	}
+
+
+            function _getProjects(){
+                return publicVars.data.projects;
+            }
+
+            function _getProjectByID(projectID){
+                for(i=0;i<publicVars.data.projects.length;i++){
+                    if(publicVars.data.projects[i].id.toString() == projectID.toString()){
+                        return publicVars.data.projects[i];
+                    }
+                }
+            }
 
         	/*
         	 *	Public function setPeople
@@ -349,10 +367,14 @@
         	 *	Representation of all people in JSON format from CarftCMS API
         	 *	This function is intended to store this JSON in the module's private var
         	 */
-        	function _setPeople(peopleJSON){        		
-        		publicVars.data.people = peopleJSON.data.slice();
+        	function _setPeople(peopleJSON){     		
+        		publicVars.data.people = peopleJSON;
         		return publicVars.data.people;
         	}
+
+            function _getPeople(){
+                return publicVars.data.people;
+            }
 
         	/*
         	 *	Public function setThemes
@@ -361,12 +383,16 @@
         	 *	This function is intended to store this JSON in the module's private var
         	 */
         	function _setThemes(themesJSON){
-        		publicVars.data.themes = themesJSON.data.slice();
+        		publicVars.data.themes = themesJSON;
         		for(i=0;i<publicVars.data.themes.length;i++){
         			publicVars.data.themecolors[ publicVars.data.themes[i]['id'] ] = publicVars.data.themes[i]['color'];
         		}
         		return publicVars.data.themes;
         	}
+
+            function _getThemes(){
+                return publicVars.data.themes;
+            }
 
         	/*
         	 *	Public function setResult
@@ -452,9 +478,10 @@
  			 *	@param: marker [a google.maps.Marker object]
  			 *	Creates an info window using the marker's attributes
         	 */
-        	function _createBubble(marker, peopleJSON){
-        		console.clear();
+        	function _createBubble(marker, peopleJSON, projectID){
+                console.log(peopleJSON);
                 console.log(marker.attributes);
+                console.log(projectID);
 
                 if( typeof marker.attributes.institution[0] == 'undefined' ){
         			var institution = '';
@@ -467,24 +494,71 @@
 
                 var pplCount = 0;
                 var pplBbl = [];
-                for(i in peopleJSON){
-                    if( [peopleJSON[i].latitude, peopleJSON[i].longitude].join(",") == marker.getPosition().toUrlValue() ){
+
+                for(i=0;i<publicVars.data.people.length;i++){
+                    if( [publicVars.data.people[i].latitude, publicVars.data.people[i].longitude].join(",") == marker.getPosition().toUrlValue() ){
                         pplCount++;
-                        pplBbl.push( peopleJSON[i] );
+                        if( publicVars.data.people[i].projects.length == 0){
+                            pplBbl.push( {'group': 'outcasts', 'projects': [], 'title': publicVars.data.people[i].title, 'jobTitle': publicVars.data.people[i].jobTitle, 'institution': (typeof publicVars.data.people[i].institution[0] == 'undefined') ? '' : publicVars.data.people[i].institution[0].title } );
+                        }
+                        else{
+                            if( publicVars.data.people[i].projects.indexOf(projectID) > -1){
+                                pplBbl.push( {'group': 'projectees', 'projects': publicVars.data.people[i].projects.slice(), 'title': publicVars.data.people[i].title, 'jobTitle': publicVars.data.people[i].jobTitle, 'institution': (typeof publicVars.data.people[i].institution[0] == 'undefined') ? '' : publicVars.data.people[i].institution[0].title } );
+                            }
+                        }                        
                     }
                 }
 
+                console.log(pplBbl);
+
                 if(pplCount > 1){
                     /*Show a list of people in the bubble*/
-                    var $content = $('<div style="padding:5px;height:auto;overflow:hidden;"><p style="font-size:14px;font-weight:bold;margin:0;">' + marker.attributes.projectTitle + '</p><ul></ul></div>');
-                    for(i in pplBbl){
-                        $content.find('ul').append( $('<li>' + pplBbl[i].title + '</li>') );
+                    var $content = $('<div style="padding:5px;height:auto;overflow:hidden;"><ul class="projectees"></ul></div>');
+                    //pplBl = pplBbl.sort(function(a,b){return a.xx-b.xx}).slice();
+                    //console.log(pplBbl.sort(function(a,b){return a.noproject-b.noproject}));
+
+                    var projectees = [];
+                    var outcasts = [];
+
+                    for(i in pplBbl){                        
+                        if( pplBbl[i].group == 'projectees' ){
+                            projectees.push(pplBbl[i]);
+                        }
+                        else if(pplBbl[i].group == 'outcasts')
+                        {
+                            outcasts.push(pplBbl[i]);                            
+                        }
                     }
+
+                    for(k in projectees){
+                            var _template_data = [projectees[k].title, projectees[k].jobTitle, projectees[k].institution, "[" + projectees[k].projects.join(',')+"]"];
+                            var _templ = [];
+                            for(i in _template_data){
+                                if(_template_data[i] != ''){
+                                    _templ.push(_template_data[i]);
+                                }
+                            }
+                            $content.find('ul.projectees').append( $('<li>' + _templ.join(' &middot; ') +'</li>') );
+                    }
+                    if(outcasts.length > 0){
+                      $content.append('<hr><ul class="outcasts"></ul>');
+                    }
+                    for(j in outcasts){
+                            var _template_data = [outcasts[j].title, outcasts[j].jobTitle, outcasts[j].institution];
+                            var _templ = [];
+                            for(i in _template_data){
+                                if(_template_data[i] != ''){
+                                    _templ.push(_template_data[i]);
+                                }
+                            }
+                            $content.find('ul.outcasts').append( $('<li>' + _templ.join(' &middot; ') +'</li>') );                        
+                    }
+                    console.log([projectees, outcasts]);
                 }
                 else
                 {
                     /*Show only the individual's details in the bubble*/
-                    var $content = $('<div style="padding:5px;height:auto;overflow:hidden;"><p style="font-size:14px;font-weight:bold;margin:0;">' + marker.attributes.title + '</p><p style="font-size:12px;margin:0;">' + marker.attributes.jobTitle + '</p>' + institution + '<p style="font-size:12px;margin:0;">' + marker.attributes.projectTitle + '</p></div>');
+                    var $content = $('<div style="padding:5px;height:auto;overflow:hidden;"><p style="font-size:14px;font-weight:bold;margin:0;">' + marker.attributes.title + '</p><p style="font-size:12px;margin:0;">' + marker.attributes.jobTitle + '</p>' + institution + '<p style="font-size:12px;margin:0;">' + marker.attributes.projectTitle + '</p><p>' + '[' + marker.attributes.projects.join(",") + ']' + '</p></div>');
                 }
 
                 publicVars.bubble.setOptions({
@@ -547,7 +621,13 @@
 			  }
 			}
 
-
+            function _getMarkerByLatLng(urlValue){
+                    return publicVars.peopleMarkers.filter(
+                        function (marker) { 
+                            return marker.latlng_string === urlValue; 
+                        }
+                    );            
+            }
 
         	/*
         	 *	Public function _displaySelectedPeople
@@ -559,47 +639,66 @@
         	function _displaySelectedPeople(peopleJSON, project, setToBounds, isOverall){
         		
         		//console.log(['_displaySelectedPeople got called', peopleJSON, project]);        		
-
         		/* Instantiate a wrapper for polyline vertices */	
         		var latlngs = [];
 
         		for(i=0;i<peopleJSON.length;i++){
         			if( peopleJSON[i].latitude != 0 && peopleJSON[i].longitude != 0){
         				
-        				var pplMarker = new google.maps.Marker({
-        					'map': publicVars.map, 
+        				var pplMarker = new google.maps.Marker({        					
         					'position': new google.maps.LatLng( parseFloat(peopleJSON[i].latitude), parseFloat(peopleJSON[i].longitude)),
-        					'icon': {
-								'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join(project.themeColor),
+        					'draggable': true,
+                            'icon': {
+								'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join(project.themeColor.replace(/-/g, "")),
 							    'size': new google.maps.Size(16, 16),
 							    'scaledSize': new google.maps.Size(16, 16),
 							    'anchor': new google.maps.Point(8, 8)        						
         					}
-        				});        		
+        				});        		  
 
-        				pplMarker.attributes = $.extend(true, {}, peopleJSON[i], {'themeColor': project.themeColor, 'themeID': project.themeID, 'projectTitle': project.title});
-        				pplMarker.connections = [];
+        				pplMarker.attributes = $.extend(true, {}, peopleJSON[i], {'themeColor': project.themeColor.replace(/-/g, ""), 'themeID': project.themeID, 'projectTitle': project.title});
+        		
+                        pplMarker.connections = [];
 
         				google.maps.event.addListener(pplMarker, 'click', function(e){
-        					
+        					console.log(pplMarker.attributes.id);
                             if( publicVars.bubble.isOpen() ){
                                 publicVars.bubble.close();
-                                return;
+
+                                /*If the clicked marker is a different marker from the one we have just clicked on before then open a new info bubble*/
+                                if(publicVars.lastClickedMarkerID != this.attributes.id){
+                                    _createBubble(this, peopleJSON, project.id);
+
+                                    publicVars.bubble.open(publicVars.map, this);
+                                    publicVars.lastClickedMarkerID = this.attributes.id;                                    
+                                }
                             }
+                            else
+                            {
+                                _createBubble(this, peopleJSON, project.id);
 
-                            _createBubble(this, peopleJSON);
-
-        					publicVars.bubble.open(publicVars.map, this);
+        					   publicVars.bubble.open(publicVars.map, this);
+                               publicVars.lastClickedMarkerID = this.attributes.id;
+                            }
 
         				});
 
-        				publicVars.peopleMarkers.push(pplMarker);
-
-        				latlngs.push({'latitude': parseFloat(peopleJSON[i].latitude), 'longitude': parseFloat(peopleJSON[i].longitude)});
+                        if(publicVars.peopleMarkers.length == 0){  
+                            pplMarker.setMap(publicVars.map);                          
+                            publicVars['individualLocations'].push( pplMarker.getPosition().toString() ); 
+                            publicVars.peopleMarkers.push(pplMarker);                         
+                        }
+                        else{                        
+                            if( publicVars['individualLocations'].indexOf(pplMarker.getPosition().toString()) == -1 ){                                 
+                                pplMarker.setMap( publicVars.map );
+                                publicVars['individualLocations'].push( pplMarker.getPosition().toString() );
+                                publicVars.peopleMarkers.push( pplMarker );                                
+                            }
+                        }
+                        latlngs.push({'latitude': pplMarker.getPosition().lat(), 'longitude': pplMarker.getPosition().lng()});                              
         			}
-        		}
-
-
+        		}                      
+                        
         		if(!isOverall){
         			var uniqLatLngs =  [];
         			var a = [];
@@ -622,8 +721,6 @@
 						publicVars.vertices.push({'latlng': new google.maps.LatLng( parseFloat(coordinates[0]), parseFloat(coordinates[1]) ), 'url': a[r], 'id': r});
 					}
 
-					//console.log(publicVars.vertices);
-
 					for(i in publicVars.vertices){
 					  connectVertexToAllVertices(publicVars.vertices[i].id);
 					}
@@ -631,23 +728,64 @@
 					for(j=publicVars.connections.length - 1;j>=0;j--){
 						getUniqueConnections(publicVars.connections[j]);
 					}					
-					//console.clear();
-					//console.log(publicVars.vertices);
-					//console.log(publicVars.relations);
 
 					for(i in publicVars.relations){
-
 		        		publicVars.projectCoverages.push(new google.maps.Polyline({
 		        			'map': publicVars.map,
 		        			'strokeOpacity': 1,
-		        			'strokeColor': project.themeColor,
+		        			'strokeColor': project.themeColor.replace(/-/g, ""),
 		        			'strokeWeight': 2,
 		        			'path': [publicVars.vertices[ publicVars.relations[i][0] ].latlng, publicVars.vertices[ publicVars.relations[i][1] ].latlng]
 		        		}));						
 					}
-				}				
+				}
 
+                if(isOverall){
+                    for(j in publicVars.peopleMarkers){
+                            /*Modify location color*/       
+                            var pplCount = 0;
+                            var pplBbl = [];
+                            for(i=0;i<publicVars.data.people.length;i++){
+                                if( [publicVars.data.people[i].latitude, publicVars.data.people[i].longitude].join(",") == publicVars.peopleMarkers[j].getPosition().toUrlValue() ){
+                                    pplCount++;
+                                    if( publicVars.data.people[i].projects.length == 0){
+                                        pplBbl.push( {'group': 'outcasts', 'projects': [], 'title': publicVars.data.people[i].title, 'jobTitle': publicVars.data.people[i].jobTitle, 'institution': (typeof publicVars.data.people[i].institution[0] == 'undefined') ? '' : publicVars.data.people[i].institution[0].title } );
+                                    }
+                                    else{
+                                        if( publicVars.data.people[i].projects.indexOf(project.id) > -1){
+                                            pplBbl.push( {'group': 'projectees', 'projects': publicVars.data.people[i].projects.slice(), 'title': publicVars.data.people[i].title, 'jobTitle': publicVars.data.people[i].jobTitle, 'institution': (typeof publicVars.data.people[i].institution[0] == 'undefined') ? '' : publicVars.data.people[i].institution[0].title } );
+                                        }
+                                    }                        
+                                }
+                            }
+                            if(pplCount > 1){
+                                var projectees = [];
+                                var outcasts = [];
 
+                                for(i in pplBbl){                        
+                                    if( pplBbl[i].group == 'projectees' ){
+                                        projectees.push(pplBbl[i]);
+                                    }
+                                    else if(pplBbl[i].group == 'outcasts')
+                                    {
+                                        outcasts.push(pplBbl[i]);                            
+                                    }
+                                }
+
+                                if(outcasts.length > 0){
+                                    publicVars.peopleMarkers[j].setOptions({'icon': {'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join('#000000'),'size': new google.maps.Size(16, 16),'scaledSize': new google.maps.Size(16, 16),'anchor': new google.maps.Point(8, 8)}})
+                                }
+                            }
+                            else
+                            {
+                                //console.log([publicVars.peopleMarkers[j].attributes.projects.length, publicVars.peopleMarkers[j].attributes.title]);
+                                /*Color marker black if the guy is involved in more projects*/
+                                if( publicVars.peopleMarkers[j].attributes.projects.length > 1 ){                                    
+                                    publicVars.peopleMarkers[j].setOptions({'icon': {'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join('#000000'),'size': new google.maps.Size(16, 16),'scaledSize': new google.maps.Size(16, 16),'anchor': new google.maps.Point(8, 8)}})
+                                }
+                            } 
+                    }
+                }				
 
         		var ring = calculateConvexHull(latlngs);
 
@@ -655,33 +793,471 @@
         		var bounds = new google.maps.LatLngBounds();
 
         		for(i in ring){
-        			/*if(isOverall){
-        				path.push(new google.maps.LatLng(ring[i].latitude, ring[i].longitude));
-        			}*/	
         			bounds.extend(new google.maps.LatLng(ring[i].latitude, ring[i].longitude));
         		}
-        		if(isOverall){
-	        		/*path.push(new google.maps.LatLng(ring[0].latitude, ring[0].longitude));
-	        		
-	        		publicVars.projectCoverages.push(new google.maps.Polyline({
-	        			'map': publicVars.map,
-	        			'strokeOpacity': 1,
-	        			'strokeColor': project.themeColor,
-	        			'strokeWeight': 2,
-	        			'path': path
-	        		}));*/
-				}
+
         		if(setToBounds){
         			if( !bounds.isEmpty() ){
-        				publicVars.map.fitBounds(bounds);
+                        google.maps.event.addListenerOnce(publicVars.map, 'bounds_changed', function(){
+                            if( publicVars.map.getZoom() == 22){
+                                publicVars.map.setZoom(16);
+                            }
+                        });
+        				publicVars.map.fitBounds(bounds);                      
         			}
         		}        		
         	}
+
+            function _createBubbleForOverView(marker){
+                if(marker.people.length == 1){
+                    console.log(marker.people);
+                    if( typeof marker.people[0].institution[0] == 'undefined' ){
+                        var institution = '';
+                    }
+                    else
+                    {
+                        var institution = '<p style="font-size:12px;margin:0;">' + marker.people[0].institution[0].title + '</p>';
+                    }
+                    var relatedProject = _getProjectByID(marker.people[0].projects[0]);
+                    var projectNames = [];
+                    for(a in marker.people[0].projects){
+                        var p = _getProjectByID(marker.people[0].projects[a]);
+                        projectNames.push('<span style="color: ' + p.themeColor.replace(/-/g, "") + '">' + p.title + '</span>');
+                    }
+                    var $content = $('<div style="padding:5px;height:auto;overflow:hidden;"><p style="font-size:14px;font-weight:bold;margin:0;">' + marker.people[0].title + '</p><p style="font-size:12px;margin:0;">' + marker.people[0].jobTitle + '</p>' + institution + '<p>' + '[' + projectNames.join(",") + ']' + '</p></div>');
+                    publicVars.bubble.setOptions({
+                        content: $content.get(0),
+                    });
+                    publicVars.bubble.open(publicVars.map, marker);              
+                }
+                else
+                {
+                    var $content = $('<div style="padding:5px;height:auto;overflow:hidden;"><ul class="a"></ul><ul class="b"></ul></div>');
+
+                    for(u=0;u<marker.people.length;u++){
+                        if(marker.people[u].projects.length > 0){
+                            var institution = '';
+                            if( typeof marker.people[u].institution[0] != 'undefined' ){
+                                var institution = marker.people[u].institution[0].title;
+                            }
+                            var projectNames = [];
+                            for(a in marker.people[u].projects){
+                                var p = _getProjectByID(marker.people[u].projects[a]);
+                                projectNames.push('<span style="color:' + p.themeColor.replace(/-/g, "") + '">' + p.title + '</span>');
+                            }                                                        
+                            var _template_data = [marker.people[u].title, marker.people[u].jobTitle, institution, '[' + projectNames.join(' ') + ']'];
+                            var _templ = [];
+                            for(i in _template_data){
+                                if(_template_data[i] != '' || typeof _template_data[i] != 'undefined'){
+                                    _templ.push(_template_data[i]);
+                                }
+                            }                            
+                            $content.find('ul.a').append( $('<li>' + _template_data.join(' &middot; ') + '</li>') );
+                        }
+                    }
+
+                    for(h=0;h<marker.people.length;h++){
+                        if(marker.people[h].projects.length == 0){
+                            var institution = '';
+                            if( typeof marker.people[h].institution[0] != 'undefined' ){
+                                var institution = marker.people[h].institution[0].title;
+                            }                               
+                            var template_data = [marker.people[h].title, marker.people[h].jobTitle, institution];
+                            var _templ = [];
+                            for(i in template_data){
+                                if(template_data[i] != '' || typeof template_data[i] != 'undefined'){
+                                    _templ.push(_template_data[i]);
+                                }
+                            }                            
+                            $content.find('ul.b').append( $('<li>' + template_data.join(' &middot; ') + '</li>') );
+                        }
+                    }                    
+                    publicVars.bubble.setOptions({
+                        content: $content.get(0),
+                    });
+                    publicVars.bubble.open(publicVars.map, marker);                     
+                }                                
+            }
+
+            function _createBubbleForProjectView(marker, pid){
+                var institution = '';
+                if( typeof marker.people[0].institution[0] != 'undefined' ){
+                    var institution = marker.people[0].institution[0].title;
+                }  
+
+                if(marker.people.length > 1){
+                    var $content = $('<div style="padding:5px;height:auto;overflow:hidden;"><ul></ul></div>');
+                    for(u=0;u<marker.people.length;u++){
+                        if(marker.people[u].projects.indexOf(pid) > -1){
+                            var projectNames = [];
+                            for(a in marker.people[u].projects){
+                                var p = _getProjectByID(marker.people[u].projects[a]);
+                                projectNames.push('<span style="color:' + p.themeColor.replace(/-/g, "") + '">' + p.title + '</span>');
+                            }                          
+                            var _template_data = [marker.people[u].title, marker.people[u].jobTitle, institution, '[' + projectNames.join(' ') + ']'];
+                            var _templ = [];
+                            for(i in _template_data){
+                                if(_template_data[i] != '' || typeof _template_data[i] != 'undefined'){
+                                    _templ.push(_template_data[i]);
+                                }
+                            } 
+                            $content.find('ul').append( $('<li>' + _template_data.join(' &middot; ') + '</li>') );
+                        }
+                    }
+                }
+                else if(marker.people.length == 1)
+                {
+                    var ps = [];
+                    var pk = [];
+                    console.log( marker.people[0].projects );
+                    for(i in marker.people[0].projects){
+                        console.log(marker.people[0].projects[i]);
+                        var p = _getProjectByID( marker.people[0].projects[i] );
+                        
+                        ps.push('<span style="color: '+ p.themeColor.replace(/-/g, "") +'">' + p.title + '</span>');
+                        var $content = $('<div style="padding:5px;height:auto;overflow:hidden;"><p style="font-size:14px;font-weight:bold;margin:0;">' + marker.people[0].title + '</p><p style="font-size:12px;margin:0;">' + marker.people[0].jobTitle + '</p>' + institution + '<p>[' + ps.join(', ')+ ']</p></div>');                        
+                    }
+                    for(i=0;i<marker.people[0].projects.length+1;i++){
+
+                    }
+                                            
+                }
+
+
+
+                //var $content = $('<div style="padding:5px;height:auto;overflow:hidden;"><p style="font-size:14px;font-weight:bold;margin:0;">' + marker.people[0].title + '</p><p style="font-size:12px;margin:0;">' + marker.people[0].jobTitle + '</p>' + institution + '<p>[' + ps.join(', ')+ ']</p></div>');
+                publicVars.bubble.setOptions({
+                    content: $content.get(0),
+                });
+                publicVars.bubble.open(publicVars.map, marker);                
+            }
+
+            function _displayProjectPeople(projectID){
+                var bounds = new google.maps.LatLngBounds();
+                publicVars.vertices.length = 0;
+
+               _deleteOverlays();
+
+                /**/
+
+                var latlngs = [];
+
+                /*Collect the distinct locations*/
+                for(i=0;i<publicVars.data.people.length;i++){
+                    var latlngurl = new google.maps.LatLng(publicVars.data.people[i].latitude, publicVars.data.people[i].longitude).toUrlValue();
+                    if(latlngs.indexOf(latlngurl) == -1){
+                        latlngs.push(latlngurl);
+                    }                    
+                }                
+
+                for(j=0;j<latlngs.length;j++){
+                    var coordinate_values = latlngs[j].split(",");
+                    var marker = new google.maps.Marker({
+                        'map': publicVars.map,
+                        'position': new google.maps.LatLng(coordinate_values[0], coordinate_values[1]),
+                        'latlng_string': new google.maps.LatLng(coordinate_values[0], coordinate_values[1]).toUrlValue(),
+                        'people': [],
+                        'projectIDs': []
+                    });
+
+                    google.maps.event.addListener(marker, 'click', function(){
+                        
+                            if( publicVars.bubble.isOpen() ){
+                                publicVars.bubble.close();
+
+                                /*If the clicked marker is a different marker from the one we have just clicked on before then open a new info bubble*/
+                                if(publicVars.lastClickedMarkerID != this.latlng_string){
+                                    _createBubbleForProjectView(this, projectID);
+                                    publicVars.lastClickedMarkerID = this.latlng_string;                                    
+                                }
+                            }
+                            else
+                            {
+                                _createBubbleForProjectView(this, projectID);
+                               publicVars.lastClickedMarkerID = this.latlng_string;
+                            }
+
+
+                    });
+                    
+                    publicVars.peopleMarkers.push(marker);
+                }
+
+                for(k=0;k<publicVars.data.people.length;k++){
+                    var personLocation = new google.maps.LatLng(publicVars.data.people[k].latitude, publicVars.data.people[k].longitude).toUrlValue();
+                    var hostMarker = _getMarkerByLatLng(personLocation);
+                    hostMarker[0].people.push(publicVars.data.people[k]);
+                    for(u in publicVars.data.people[k].projects){
+                        hostMarker[0].projectIDs.push( publicVars.data.people[k].projects[u] );
+                    }
+                }
+                /**/
+
+                var p = _getProjectByID(projectID);
+
+
+                for(i=0;i<publicVars.peopleMarkers.length;i++){
+                    if(publicVars.peopleMarkers[i].projectIDs.indexOf(projectID) == -1){
+                       publicVars.peopleMarkers[i].setMap(null);   
+                    }
+                    else
+                    {
+                        publicVars.peopleMarkers[i].setMap(publicVars.map);
+                        publicVars.peopleMarkers[i].setOptions({
+                            'icon': {
+                                'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join(p.themeColor.replace(/-/g, "")),
+                                'size': new google.maps.Size(16, 16),
+                                'scaledSize': new google.maps.Size(16, 16),
+                                'anchor': new google.maps.Point(8, 8)                               
+                            }}); 
+                        bounds.extend(publicVars.peopleMarkers[i].getPosition());
+                        publicVars.vertices.push({'latlng': publicVars.peopleMarkers[i].getPosition(), 'id': publicVars.vertices.length});
+                    }
+                }
+
+                if( !bounds.isEmpty() ){
+                    publicVars.map.fitBounds(bounds);
+                    if(publicVars.map.getZoom() > 13 ){
+                        publicVars.map.setZoom(13);
+                    }
+                }               
+
+
+                for(i in publicVars.vertices){
+                    connectVertexToAllVertices(publicVars.vertices[i].id);
+                }
+
+                for(j=publicVars.connections.length - 1;j>=0;j--){
+                    getUniqueConnections(publicVars.connections[j]);
+                }                   
+
+                var currentProject = _getProjectByID(projectID);
+
+                for(i in publicVars.relations){
+                    publicVars.projectCoverages.push(new google.maps.Polyline({
+                        'map': publicVars.map,
+                        'strokeOpacity': 1,
+                        'strokeColor': currentProject.themeColor.replace(/-/g, ""),
+                        'strokeWeight': 2,
+                        'path': [publicVars.vertices[ publicVars.relations[i][0] ].latlng, publicVars.vertices[ publicVars.relations[i][1] ].latlng]
+                    }));                        
+                }
+
+                publicVars.connections.length = 0;
+                publicVars.relations.length = 0;
+                publicVars.vertices.length = 0;
+            }
+
+            function _displayAllPeople(){                
+                var bounds = new google.maps.LatLngBounds();
+                
+                if( typeof publicVars.defaultBounds == 'undefined'){
+                    publicVars.defaultBounds = new google.maps.LatLngBounds();
+                }
+
+                var latlngs = [];
+
+                /*Collect the distinct locations*/
+                for(i=0;i<publicVars.data.people.length;i++){
+                    var latlngurl = new google.maps.LatLng(publicVars.data.people[i].latitude, publicVars.data.people[i].longitude).toUrlValue();
+                    if(latlngs.indexOf(latlngurl) == -1){                        
+                        latlngs.push(latlngurl);
+                    }                    
+                }                
+
+                for(j=0;j<latlngs.length;j++){
+                    var coordinate_values = latlngs[j].split(",");
+                    var marker = new google.maps.Marker({
+                        'map': publicVars.map,
+                        'position': new google.maps.LatLng(coordinate_values[0], coordinate_values[1]),
+                        'latlng_string': new google.maps.LatLng(coordinate_values[0], coordinate_values[1]).toUrlValue(),
+                        'people': [],
+                        'projectIDs': []
+                    });
+                    
+                    google.maps.event.addListener(marker, 'click', function(){
+                        
+
+                            if( publicVars.bubble.isOpen() ){
+                                publicVars.bubble.close();
+
+                                /*If the clicked marker is a different marker from the one we have just clicked on before then open a new info bubble*/
+                                if(publicVars.lastClickedMarkerID != this.latlng_string){
+                                    _createBubbleForOverView(this); 
+                                    publicVars.lastClickedMarkerID = this.latlng_string;                                    
+                                }
+                            }
+                            else
+                            {
+                                _createBubbleForOverView(this); 
+                               publicVars.lastClickedMarkerID = this.latlng_string;
+                            }
+
+
+
+                    });
+                    publicVars.peopleMarkers.push(marker);
+                }
+
+                for(k=0;k<publicVars.data.people.length;k++){
+                    var personLocation = new google.maps.LatLng(publicVars.data.people[k].latitude, publicVars.data.people[k].longitude).toUrlValue();
+                    var hostMarker = _getMarkerByLatLng(personLocation);
+                    hostMarker[0].people.push(publicVars.data.people[k]);
+                    for(u in publicVars.data.people[k].projects){
+                        hostMarker[0].projectIDs.push( publicVars.data.people[k].projects[u] );
+                    }
+                }
+
+
+
+                for(l=0;l<publicVars.peopleMarkers.length;l++){                    
+                    
+                    publicVars.defaultBounds.extend(publicVars.peopleMarkers[l].getPosition());
+
+                    if( publicVars.peopleMarkers[l].people.length > 1 ){
+
+                        var _atOnePlace = [];
+                        var _hasNoProjects = 0;
+
+                        for(xy in publicVars.peopleMarkers[l].people){
+                            for( xx in publicVars.peopleMarkers[l].people[xy].projects){
+                                if(_atOnePlace.indexOf(publicVars.peopleMarkers[l].people[xy].projects[xx]) == -1){
+                                    _atOnePlace.push(publicVars.peopleMarkers[l].people[xy].projects[xx]);
+                                }
+                            }
+                        }
+
+                        for(xy in publicVars.peopleMarkers[l].people){
+                            if(publicVars.peopleMarkers[l].people[xy].projects.length == 0){
+                                 _hasNoProjects++;
+                            }
+                        }                        
+
+                        if(_atOnePlace.length == 1){
+                            var p = _getProjectByID(_atOnePlace[0]);
+                            publicVars.peopleMarkers[l].setOptions({'icon': {
+                                'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join(p.themeColor.replace(/-/g, "")),
+                                'size': new google.maps.Size(16, 16),
+                                'scaledSize': new google.maps.Size(16, 16),
+                                'anchor': new google.maps.Point(8, 8)                               
+                            }});
+                        }
+                        else
+                        {
+                            /*if more people has projects from the same theme change to theme color*/
+                            var themeColors = [];
+                            for(xy in publicVars.peopleMarkers[l].people){
+                                for(z=0;z<publicVars.peopleMarkers[l].people[xy].projects.length;z++){
+                                    if(themeColors.indexOf( publicVars.peopleMarkers[l].people[xy].projects[z].themeColor ) == -1 ){
+                                        themeColors.push( publicVars.peopleMarkers[l].people[xy].projects[z].themeColor );
+                                    }
+                                }
+                            }  
+
+                            if(themeColors.length == 1){
+                                publicVars.peopleMarkers[l].setOptions({'icon': {
+                                    'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join(themeColors[0]),
+                                    'size': new google.maps.Size(16, 16),
+                                    'scaledSize': new google.maps.Size(16, 16),
+                                    'anchor': new google.maps.Point(8, 8)                               
+                                }});                                
+                            }
+                            else
+                            {
+                                publicVars.peopleMarkers[l].setOptions({'icon': {
+                                    'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join('#000000'),
+                                    'size': new google.maps.Size(16, 16),
+                                    'scaledSize': new google.maps.Size(16, 16),
+                                    'anchor': new google.maps.Point(8, 8)                               
+                                }});
+                            }                         
+
+                        }
+
+                        if(_hasNoProjects > 0){
+                            publicVars.peopleMarkers[l].setOptions({'icon': {
+                                'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join('#000000'),
+                                'size': new google.maps.Size(16, 16),
+                                'scaledSize': new google.maps.Size(16, 16),
+                                'anchor': new google.maps.Point(8, 8)                               
+                            }});                            
+                        }
+
+
+                    }
+                    else if( publicVars.peopleMarkers[l].people.length == 1 ){
+                        /*If there is exactly one person at a given location let's look how many project this person is involved in*/
+                        if( publicVars.peopleMarkers[l].people[0].projects.length > 1){
+                            /*If the person is active in more than 1 project, turn the dot black*/
+                            publicVars.peopleMarkers[l].setOptions({'icon': {
+                                'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join('#000000'),
+                                'size': new google.maps.Size(16, 16),
+                                'scaledSize': new google.maps.Size(16, 16),
+                                'anchor': new google.maps.Point(8, 8)                               
+                            }}); 
+
+                            /*De ha ugyanaz a theme akkor szines*/
+
+                            var themeColors = [];
+
+                                for(z=0;z<publicVars.peopleMarkers[l].people[0].projects.length;z++){
+                                    var p = projectMap.getProjectByID(publicVars.peopleMarkers[l].people[0].projects[z]);
+                                    if(themeColors.indexOf( p.themeColor ) == -1 ){                                        
+                                        themeColors.push( p.themeColor );
+                                    }
+                                }
+
+                            if(themeColors.length == 1){
+                                publicVars.peopleMarkers[l].setOptions({'icon': {
+                                    'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join(themeColors[0]),
+                                    'size': new google.maps.Size(16, 16),
+                                    'scaledSize': new google.maps.Size(16, 16),
+                                    'anchor': new google.maps.Point(8, 8)                               
+                                }});                                
+                            }
+                            else
+                            {
+                                publicVars.peopleMarkers[l].setOptions({'icon': {
+                                    'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join('#000000'),
+                                    'size': new google.maps.Size(16, 16),
+                                    'scaledSize': new google.maps.Size(16, 16),
+                                    'anchor': new google.maps.Point(8, 8)                               
+                                }});
+                            }                             
+
+
+
+                        }
+                        else if( publicVars.peopleMarkers[l].people[0].projects.length == 1){
+                            /*else, if the only person at the location is active in only one project, color the dot to the project's them color*/
+                            var personsProject = _getProjectByID(publicVars.peopleMarkers[l].people[0].projects[0]);
+                            publicVars.peopleMarkers[l].setOptions({'icon': {
+                                'url': 'data:image/svg+xml,' + publicVars.assets.basemarker.split('marker-color-here').join(personsProject.themeColor.replace(/-/g, "")),
+                                'size': new google.maps.Size(16, 16),
+                                'scaledSize': new google.maps.Size(16, 16),
+                                'anchor': new google.maps.Point(8, 8)                               
+                            }});
+                        }                        
+                    }
+                }
+                  
+                _createCluster();
+
+
+                return bounds;               
+            }
 
         	function _displayAllProjects(initial){
         		
         		/* Delete all possible overlays from the map */
         		_deleteOverlays();
+
+                if( typeof publicVars.defaultBounds != 'undefined'){
+                    if( !publicVars.defaultBounds.isEmpty() ){
+                        console.log('Defaulting');
+                        publicVars.map.fitBounds(publicVars.defaultBounds);
+                    }
+                }
         		
         		var updatedProjectsArray = [];
 
@@ -700,33 +1276,14 @@
 					publicVars.data.projects[i]['themeColor'] = publicVars.data.themecolors[ publicVars.data.projects[i]['themeID'] ];				
 				}
 
-        		
-
         		var counter = 0;
 
-        		for(k in publicVars.data.projects){        			
-					var ppl = (function(project){
-						return _getUrlContents('https://staging-luma.basedigital.io/api/en/people/' + publicVars.data.projects[k].peopleIDs + '.json').then(function(data){							
-								counter++;
-								if(counter == publicVars.data.projects.length){
-									var bounds = new google.maps.LatLngBounds();
-									for(z in publicVars.peopleMarkers){
-										bounds.extend(publicVars.peopleMarkers[z].getPosition());
-									}
-									if( !bounds.isEmpty() ){
-										if( initial ){
-                                            publicVars.map.fitBounds(bounds);
-                                        }    
-						        		_createCluster();										
-									}
-								}
-								else
-								{
-									_displaySelectedPeople(data.data, project, false, true);								
-								}
-							});
-					})(publicVars.data.projects[k]);        			
-        		}       		
+
+                _displayAllPeople(); 
+
+                if( initial ){
+                    publicVars.map.fitBounds(publicVars.defaultBounds);                 
+                }                      		
         	}
 
         	function _getUrlContents(url){
@@ -777,6 +1334,10 @@
                 }                
             }
 
+            function _resetLocations(){
+                publicVars['individualLocations'].length = 0;
+            }
+
         	return {
             	init: _init,
             	getAllPeople: _getAllPeople, 
@@ -785,7 +1346,9 @@
             	getSingleProject: _getSingleProject,
             	getThemeInfo:_getThemeInfo,
             	setPeople: _setPeople,
+                getPeople: _getPeople,
             	setProjects: _setProjects,
+                getProjects: _getProjects,
             	setThemes: _setThemes,
             	setResult: _setResult,
             	createProjectDropdown: _createProjectDropdown,
@@ -799,6 +1362,10 @@
                 fetchProjectPeople: _fetchProjectPeople,
                 getClusterer: _getClusterer,
                 getPeopleMarkers: _getPeopleMarkers,
-                getMap: _getMap
+                getMap: _getMap,
+                resetLocations: _resetLocations,
+                getLanguage: _getLang,
+                getProjectByID:_getProjectByID,
+                displayProjectPeople: _displayProjectPeople
         	};
     	})(window, jQuery);
