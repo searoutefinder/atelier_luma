@@ -120,12 +120,55 @@
 				return projectMap.getAllPeople().then(projectMap.setPeople);
 			})();
 
+			$.when(
+				projectMap.getAllProjects(),
+				projectMap.getAllThemes(),
+				projectMap.getAllPeople()
+			)
+			.done(function(projects, themes, people){
+			
+				projectMap.setProjects( projects[0].data.slice() );
+				projectMap.setThemes( themes[0].data.slice() );
+				projectMap.setPeople( people[0].data.slice() );
+
+			    var clusterer = projectMap.getClusterer();
+
+			    if( typeof clusterer != 'undefined' ){
+			       	clusterer.clearMarkers();
+			        clusterer = null;
+			    }
+
+			    projectMap.singlePrepareData();
+
+				projectMap.displayProjectPeople( projectID );
+
+				var project = projectMap.getProjectByID( projectID );
+
+				console.log(typeof projectID);
+
+        		$('#controls')
+        			.html('')
+        			.css({'background': project.themeColor.replace(/-/g, "")});
+
+        		var lbl = $('<label>').css({'padding':'15px','border':'1px solid #000000', 'display': 'block', 'margin-top': '80px', 'font-size': '14px'}).html(projectMap.getThemeInfo(project.themeID).title);
+
+        		$('#controls').append(lbl);
+        		$('#controls').append('<h1>' + project.title + '</h1>');
+        		$('#controls').append(project.intro);
+        		$('#controls').append('<a href="' + project.url + '">View project</a>');
+
+        		$('#map').removeClass('slide-out').addClass('slide-in');
+        		$('#controls').removeClass('slide-out').addClass('slide-in');
+        					
+        		google.maps.event.trigger(projectMap.getMap(), 'resize');
+
+			});
+
+			/*
 			people.done(function(data){
 
-				/*Get the IDs for each people in each project*/
 				projectMap.fetchProjectPeople();
 
-				/* Close any info bubble that may be open */
 				projectMap.closeBubble();
 
 				$('#controls').removeClass('slide-in').addClass('slide-out');
@@ -133,8 +176,6 @@
 				if( projectID == 9999){
 					projectMap.displayAllProjects();					
 				}
-
-				/* Get single project's details and prepare request for retrieving participants */
 					
 				var project = projectMap.getSingleProject( projectID );
 
@@ -148,8 +189,6 @@
         				
         				var people = projectMap.getPeopleMarkers(); 							
 
-
-                        /*Create the sidebar*/
         				$('#controls')
         					.html('')
         					.css({'background': project.themeColor});
@@ -161,28 +200,10 @@
         				$('#controls').append(project.intro);
         				$('#controls').append('<a href="' + project.url + '">View project</a>');
 
-        				/*$('#controls').append( $('<ul></ul>').css({'margin':'0px 0px 0px 15px','padding':'10px 0px 0px 0px'}) );
-
-        				for(i in data){
-        					var $li = $('<li><a href="#" class="ppl-sidebar-listitem" data-id="' + data[i].id + '">' + data[i].title + '</a></li>');
-        					$li.find('.ppl-sidebar-listitem').on('click', function(e){
-        						e.preventDefault();
-        						for(h=0;h<people.length;h++){
-        							if( people[h].attributes.id == $(e.currentTarget).attr('data-id') ){
-        								var map = projectMap.getMap();
-        								map.setCenter( people[h].getPosition() );
-        								google.maps.event.trigger(people[h], 'click');
-        								return;
-        							}	
-        						}
-        					});
-        					$('#controls').find('ul').append( $li );
-        				}*/
-
         				$('#controls').removeClass('slide-out').addClass('slide-in');
 					});
 				}
-			});
+			});*/
     	}
 
 		$(document).ready(function(){
