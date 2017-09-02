@@ -833,7 +833,6 @@
                 else
                 {
                     var $content = $('<div style="padding:5px;height:auto;overflow:hidden;"><ul class="a"></ul><ul class="b"></ul></div>');
-
                     for(u=0;u<marker.people.length;u++){
                         if(marker.people[u].projects.length > 0){
                             var institution = '';
@@ -846,6 +845,7 @@
                                 projectNames.push('<span style="color:' + p.themeColor.replace(/-/g, "") + '">' + p.title + '</span>');
                             }                                                        
                             var _template_data = [marker.people[u].title, marker.people[u].jobTitle, institution, '[' + projectNames.join(' ') + ']'];
+                            
                             var _templ = [];
                             for(i in _template_data){
                                 if(_template_data[i] != '' || typeof _template_data[i] != 'undefined'){
@@ -866,7 +866,7 @@
                             var _templ = [];
                             for(i in template_data){
                                 if(template_data[i] != '' || typeof template_data[i] != 'undefined'){
-                                    _templ.push(_template_data[i]);
+                                    _templ.push(template_data[i]);
                                 }
                             }                            
                             $content.find('ul.b').append( $('<li>' + template_data.join(' &middot; ') + '</li>') );
@@ -995,6 +995,7 @@
 
                 var p = _getProjectByID(projectID);
 
+                console.log(p);    
 
                 for(i=0;i<publicVars.peopleMarkers.length;i++){
                     if(publicVars.peopleMarkers[i].projectIDs.indexOf(projectID) == -1){
@@ -1073,6 +1074,10 @@
                         'latlng_string': new google.maps.LatLng(coordinate_values[0], coordinate_values[1]).toUrlValue(),
                         'people': [],
                         'projectIDs': []
+                    });
+
+                    google.maps.event.addListener(marker, 'mouseover', function(){
+                        console.log(this);
                     });
                     
                     google.maps.event.addListener(marker, 'click', function(){
@@ -1337,6 +1342,22 @@
             function _resetLocations(){
                 publicVars['individualLocations'].length = 0;
             }
+            function _singlePrepareData(){
+                for( i=0;i<publicVars.data.projects.length;i++ ){
+                    publicVars.data.projects[i].peopleIDs = [];
+                    for( j=0;j<publicVars.data.projects[i].people.length;j++ ){
+                        var regExp = /\/people\/(.*?).json/;
+                        var matches = regExp.exec(publicVars.data.projects[i].people[j].jsonUrl);
+                        publicVars.data.projects[i].peopleIDs.push(parseInt(matches[1]));
+                    }
+                    var regExp_themeID = /\/themes\/(.*?).json/;                        
+                    var themeID_matches = regExp_themeID.exec(publicVars.data.projects[i].theme[0].jsonUrl);
+                    var themeID = themeID_matches[1];
+
+                    publicVars.data.projects[i]['themeID'] = parseInt(themeID);
+                    publicVars.data.projects[i]['themeColor'] = publicVars.data.themecolors[ publicVars.data.projects[i]['themeID'] ];              
+                }                
+            }
 
         	return {
             	init: _init,
@@ -1366,6 +1387,7 @@
                 resetLocations: _resetLocations,
                 getLanguage: _getLang,
                 getProjectByID:_getProjectByID,
-                displayProjectPeople: _displayProjectPeople
+                displayProjectPeople: _displayProjectPeople,
+                singlePrepareData: _singlePrepareData
         	};
     	})(window, jQuery);
