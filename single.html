@@ -43,6 +43,31 @@
 		    padding:80px 15px 15px 15px;			
 		}
 
+		#controls.slide-in {
+		    animation: slide-in 0.5s forwards;
+		    -webkit-animation: slide-in 0.5s forwards;
+		}
+
+		#controls.slide-out {
+		    animation: slide-out 0.5s forwards;
+		    -webkit-animation: slide-out 0.5s forwards;
+		}
+		#map.slide-in {
+			left:375px;
+			right:0px;
+			top:0px;
+			bottom:0px;
+			position:absolute !important;
+			width:initial;
+		}
+
+		#map.slide-out {
+			height:100%;
+			width:100%;
+			position:relative;
+			overflow:hidden;
+		}
+		
 		.slide-in {
 		    animation: slide-in 0.5s forwards;
 		    -webkit-animation: slide-in 0.5s forwards;
@@ -140,7 +165,7 @@
 
 			    projectMap.singlePrepareData();
 
-				projectMap.displayProjectPeople( projectID );
+				
 
 				var project = projectMap.getProjectByID( projectID );
 
@@ -161,6 +186,8 @@
         		$('#controls').removeClass('slide-out').addClass('slide-in');
         					
         		google.maps.event.trigger(projectMap.getMap(), 'resize');
+
+        		projectMap.displayProjectPeople( projectID );
 
 			});
 

@@ -54,22 +54,6 @@
 				projectMap.setThemes( themes[0].data.slice() );
 				projectMap.setPeople( people[0].data.slice() );
 
-				/*var themes = themes[0].data.slice();
-				var themeRequests = [];
-				for(i=0;i<themes.length;i++){
-					themeRequests.push( 
-						$.get(themes[i].jsonUrl.replace('<locale:\\w+>', projectMap.getLanguage()))
-							.success(function(data){
-								console.log(data.data[0]);
-							}) 
-					);
-				}
-
-				$.when.apply($, themeRequests)
-				.done(function(){
-					console.log('All done');
-				});*/
-
 				var mapDropDown = projectMap.createProjectDropdown(projectMap.getProjects(), 'project-picker');
 				
 				mapDropDown.on('change', function(e){
@@ -78,13 +62,14 @@
 					projectMap.closeBubble();
 
 					if( $(this).val() == 9999 ){
-						projectMap.displayAllProjects(true);					
-
+											
 						/*Hide the sidebar when 'all projects' are selected*/
 						$('#controls').removeClass('slide-in').addClass('slide-out');
 						$('#map').removeClass('slide-in').addClass('slide-out');
 
 						google.maps.event.trigger(projectMap.getMap(), 'resize');
+
+						projectMap.displayAllProjects(true);
 						
 						return;
 					}
@@ -100,7 +85,6 @@
 			        	clusterer = null;
 			        }
 
-					projectMap.displayProjectPeople( $(this).val() );
 					var project = projectMap.getProjectByID( $(this).val() );
 
         			$('#controls')
@@ -116,15 +100,23 @@
 
         			$('#map').removeClass('slide-out').addClass('slide-in');
         			$('#controls').removeClass('slide-out').addClass('slide-in');
-        					
-        			google.maps.event.trigger(projectMap.getMap(), 'resize');
-							
+        			
+					google.maps.event.trigger(projectMap.getMap(), 'resize');
+
+					var projectMapState = projectMap.displayProjectPeople( $(this).val() );
+
+	        		/*if(!projectMapState.bounds.isEmpty()){
+	        			projectMap.getMap().fitBounds( projectMapState.bounds );	        			
+	        		}*/        									
 				});
 
 				/* Update the dropdown with the perpared SELECT HTML markup */
 				projectMap.updateMapDropdown(mapDropDown);
 
-				projectMap.displayAllProjects(false);				
+				projectMap.displayAllProjects(false);
+
+				projectMap.getMap().setCenter( new google.maps.LatLng(43.6766, 4.6278) );				
+				projectMap.getMap().setZoom(12);
 
 			});
 		});
