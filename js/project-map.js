@@ -1015,15 +1015,7 @@
                         publicVars.vertices.push({'latlng': publicVars.peopleMarkers[i].getPosition(), 'id': publicVars.vertices.length});
                     }
                 }
-
-                if( !bounds.isEmpty() ){
-                    publicVars.map.fitBounds(bounds);
-                    if(publicVars.map.getZoom() > 13 ){
-                        publicVars.map.setZoom(13);
-                    }
-                }               
-
-
+             
                 for(i in publicVars.vertices){
                     connectVertexToAllVertices(publicVars.vertices[i].id);
                 }
@@ -1047,14 +1039,23 @@
                 publicVars.connections.length = 0;
                 publicVars.relations.length = 0;
                 publicVars.vertices.length = 0;
+
+                if( !bounds.isEmpty() ){
+                    publicVars.map.fitBounds(bounds);
+                    if(publicVars.map.getZoom() > 13 ){
+                        publicVars.map.setZoom(13);
+                    }
+                }  
+
+                //return {'bounds': bounds, 'isToDeeplyZoomed': (publicVars.map.getZoom() > 13)};
             }
 
             function _displayAllPeople(){                
                 var bounds = new google.maps.LatLngBounds();
                 
-                if( typeof publicVars.defaultBounds == 'undefined'){
+                /*if( typeof publicVars.defaultBounds == 'undefined'){
                     publicVars.defaultBounds = new google.maps.LatLngBounds();
-                }
+                }*/
 
                 var latlngs = [];
 
@@ -1101,6 +1102,7 @@
 
 
                     });
+                    bounds.extend( new google.maps.LatLng(coordinate_values[0], coordinate_values[1]) );
                     publicVars.peopleMarkers.push(marker);
                 }
 
@@ -1117,7 +1119,7 @@
 
                 for(l=0;l<publicVars.peopleMarkers.length;l++){                    
                     
-                    publicVars.defaultBounds.extend(publicVars.peopleMarkers[l].getPosition());
+                    //publicVars.defaultBounds.extend(publicVars.peopleMarkers[l].getPosition());
 
                     if( publicVars.peopleMarkers[l].people.length > 1 ){
 
@@ -1249,7 +1251,9 @@
                 _createCluster();
 
 
-                return bounds;               
+                if(!bounds.isEmtpy){
+                    publicVars.map.fitBounds( bounds );                    
+                }
             }
 
         	function _displayAllProjects(initial){
